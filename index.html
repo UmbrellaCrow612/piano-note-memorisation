@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <title>Piano Note Memorization Quiz</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        purple: {
+                            950: '#0f0720',
+                            900: '#1b0d3a',
+                            800: '#2d155c',
+                            700: '#461e88',
+                            600: '#642ab5',
+                            500: '#8b41f6',
+                            400: '#a86bf9',
+                            300: '#c59bfb',
+                            200: '#e2ccfd',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Tone.js for Web Audio Synthesizer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Font Awesome Icons -->
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: radial-gradient(circle at top right, #1b0d3a, #0b0417);
+            color: #f1f5f9;
+            min-height: 100%;
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            padding-left: env(safe-area-inset-left, 0px);
+            padding-right: env(safe-area-inset-right, 0px);
+        }
+        html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+
+        /* Glassmorphism Styles */
+        .glass-panel {
+            background: rgba(30, 15, 60, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(168, 107, 249, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .glass-card {
+            background: rgba(45, 21, 92, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(168, 107, 249, 0.15);
+        }
+
+        .glass-button {
+            background: linear-gradient(135deg, rgba(139, 65, 246, 0.8), rgba(70, 30, 136, 0.8));
+            border: 1px solid rgba(197, 155, 251, 0.3);
+            box-shadow: 0 4px 15px rgba(139, 65, 246, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .glass-button:hover {
+            background: linear-gradient(135deg, rgba(168, 107, 249, 0.9), rgba(100, 42, 181, 0.9));
+            box-shadow: 0 6px 20px rgba(139, 65, 246, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .glass-button:active {
+            transform: translateY(1px);
+        }
+
+        .glass-input {
+            background: rgba(15, 7, 32, 0.6);
+            border: 1px solid rgba(168, 107, 249, 0.3);
+            color: #f1f5f9;
+        }
+
+        .glass-input:focus {
+            border-color: #a86bf9;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(168, 107, 249, 0.4);
+        }
+
+        /* Key Note Buttons Active Animation */
+        .note-btn {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .note-btn:active, .note-btn.active-key {
+            transform: scale(0.92);
+            background: rgba(168, 107, 249, 0.6) !important;
+            box-shadow: 0 0 15px rgba(168, 107, 249, 0.8);
+        }
+
+        /* SVG Glow Effects */
+        .staff-glow {
+            filter: drop-shadow(0px 0px 4px rgba(168, 107, 249, 0.5));
+        }
+        .note-glow {
+            filter: drop-shadow(0px 0px 8px rgba(197, 155, 251, 0.9));
+        }
+        .highlight-line {
+            stroke: #a86bf9;
+            stroke-width: 4;
+            filter: drop-shadow(0px 0px 6px rgba(168, 107, 249, 0.9));
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 7, 32, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(168, 107, 249, 0.3);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 107, 249, 0.6);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen justify-between items-center p-3 sm:p-6 overflow-x-hidden selection:bg-purple-500 selection:text-white">
+
+    <!-- Navigation Bar -->
+    <header class="w-full max-w-5xl flex justify-between items-center py-3 px-5 glass-panel rounded-2xl mb-6">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-purple-600/30 flex items-center justify-center border border-purple-400/30 text-purple-300 text-xl font-bold">
+                🎹
+            </div>
+            <div>
+                <h1 class="text-lg sm:text-xl font-extrabold tracking-tight bg-gradient-to-r from-purple-200 via-purple-300 to-purple-400 bg-clip-text text-transparent">
+                    Note Maestro
+                </h1>
+                <p class="text-xs text-purple-300/70 hidden sm:block">Piano Staff Memorization Trainer</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2 sm:space-x-3">
+            <button id="audio-toggle-btn" class="p-2.5 rounded-xl glass-card text-purple-300 hover:text-white hover:border-purple-400/50 transition" title="Toggle Sound FX">
+                <span id="audio-icon" class="text-lg">🔊</span>
+            </button>
+            <button id="settings-toggle-btn" class="p-2.5 rounded-xl glass-card text-purple-300 hover:text-white hover:border-purple-400/50 transition flex items-center space-x-2">
+                ⚙️
+                <span class="text-xs font-semibold hidden md:inline">Settings</span>
+            </button>
+            <button id="stats-toggle-btn" class="p-2.5 rounded-xl glass-card text-purple-300 hover:text-white hover:border-purple-400/50 transition flex items-center space-x-2">
+                📊
+                <span class="text-xs font-semibold hidden md:inline">Analytics</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-5xl flex-1 flex flex-col items-center justify-center relative">
+    <div id="setup-screen" class="w-full max-w-2xl glass-panel rounded-3xl p-4 sm:p-6 flex flex-col shadow-2xl">
+
+            <div class="flex justify-between items-center pb-4 border-b border-purple-500/20 mb-5">
+                <div class="flex items-center space-x-2">
+                    ⚙️
+                    <h2 class="text-xl font-bold text-purple-100">Practice & Quiz Settings</h2>
+                </div>
+            </div>
+
+            <div class="space-y-6 text-sm">
+
+                <!-- 1. Clef Selection -->
+                <div>
+                    <label class="block text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2">Clef Selection</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button data-setting="clef" data-value="treble" class="setting-btn px-4 py-2.5 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 hover:bg-purple-700/40 text-center">
+                            Treble Clef
+                        </button>
+                        <button data-setting="clef" data-value="bass" class="setting-btn px-4 py-2.5 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 hover:bg-purple-700/40 text-center">
+                            Bass Clef
+                        </button>
+                        <button data-setting="clef" data-value="both" class="setting-btn px-4 py-2.5 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 hover:bg-purple-700/40 text-center">
+                            Grand Staff (Both)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Question Order -->
+                <div>
+                    <label class="block text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2">Question Sequence / Order</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button data-setting="order" data-value="random" class="setting-btn px-4 py-2.5 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 hover:bg-purple-700/40 text-center">
+                            Random
+                        </button>
+                        <button data-setting="order" data-value="bottom-up" class="setting-btn px-4 py-2.5 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 hover:bg-purple-700/40 text-center">
+                            Bottom to Top
+                        </button>
+                        <button data-setting="order" data-value="top-down" class="setting-btn px-4 py-2.5 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 hover:bg-purple-700/40 text-center">
+                            Top to Bottom
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Timer Options -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2">Timer Display</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button data-setting="showTimer" data-value="true" class="setting-btn px-3 py-2 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 text-center">
+                                Show Timer
+                            </button>
+                            <button data-setting="showTimer" data-value="false" class="setting-btn px-3 py-2 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 text-center">
+                                Hide Timer
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2">Timer Mode</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button data-setting="timerMode" data-value="stopwatch" class="setting-btn px-3 py-2 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 text-center">
+                                Stopwatch
+                            </button>
+                            <button data-setting="timerMode" data-value="countdown" class="setting-btn px-3 py-2 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 text-center">
+                                Countdown (60s)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Note Complexity (Ledger Lines & Accidentals) -->
+                <div>
+                    <label class="block text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2">Note Scope & Range</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="flex items-center space-x-3 p-3 rounded-xl glass-card border border-purple-500/20 cursor-pointer">
+                            <input id="setting-basic-only" type="checkbox" class="w-4 h-4 rounded bg-purple-950 border-purple-500 text-purple-500 focus:ring-purple-400">
+                            <span class="text-purple-200">Basic 5 Lines & 4 Spaces Only</span>
+                        </label>
+                        <label class="flex items-center space-x-3 p-3 rounded-xl glass-card border border-purple-500/20 cursor-pointer">
+                            <input id="setting-accidentals" type="checkbox" class="w-4 h-4 rounded bg-purple-950 border-purple-500 text-purple-500 focus:ring-purple-400">
+                            <span class="text-purple-200">Include Sharp (♯) & Flat (♭)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 5. Visual Representation Style & Feedback Mode -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2">Visual Representation</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button data-setting="visualStyle" data-value="notehead" class="setting-btn px-3 py-2 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 text-center">
+                                Standard Note
+                            </button>
+                            <button data-setting="visualStyle" data-value="line-highlight" class="setting-btn px-3 py-2 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 text-center">
+                                Line Highlight
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2">Feedback Mode</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button data-setting="instantFeedback" data-value="true" class="setting-btn px-3 py-2 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 text-center">
+                                Auto-Advance
+                            </button>
+                            <button data-setting="instantFeedback" data-value="false" class="setting-btn px-3 py-2 rounded-xl border border-purple-500/30 glass-card font-medium text-purple-200 text-center">
+                                Manual Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Reset & Start Buttons -->
+            <div class="mt-8 pt-4 border-t border-purple-500/20 flex justify-between items-center">
+                <button id="reset-settings-btn" class="text-xs text-purple-400 hover:text-purple-200 underline">
+                    Reset Defaults
+                </button>
+                <button id="start-btn" class="glass-button px-6 py-2.5 rounded-xl font-bold text-purple-100">
+                    Start Test
+                </button>
+            </div>
+    </div>
+
+        <!-- GAMEPLAY / QUIZ CARD -->
+        <div id="quiz-container" class="hidden w-full glass-panel rounded-3xl p-4 sm:p-8 flex flex-col items-center shadow-2xl relative overflow-hidden transition-all duration-300">
+            
+            <!-- Top Status Bar -->
+            <div class="w-full flex justify-between items-center mb-4 sm:mb-6 px-2 text-xs sm:text-sm text-purple-200">
+                <div class="flex items-center space-x-3">
+                    <span id="streak-badge" class="px-3 py-1 rounded-full bg-purple-900/60 border border-purple-500/30 text-purple-300 font-semibold flex items-center space-x-1.5">
+                        🔥
+                        <span id="streak-count">0</span> Streak
+                    </span>
+                    <span id="clef-indicator" class="px-3 py-1 rounded-full bg-purple-900/60 border border-purple-500/30 text-purple-300 font-semibold hidden sm:inline-block">
+                        Treble Clef
+                    </span>
+                </div>
+
+                <!-- Timer & Score Block -->
+                <div class="flex items-center space-x-4">
+                    <div id="timer-display" class="font-mono text-base sm:text-lg font-bold text-purple-300 flex items-center space-x-1.5 bg-purple-950/80 px-3 py-1 rounded-xl border border-purple-500/20">
+                        ⏱️
+                        <span id="timer-value">00:00.0</span>
+                    </div>
+                    <div class="text-right">
+                        <span id="score-count" class="text-lg sm:text-xl font-bold text-purple-200">0</span>
+                        <span class="text-xs text-purple-400">/</span>
+                        <span id="total-count" class="text-xs text-purple-400">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STAFF DISPLAY AREA -->
+            <div class="w-full bg-purple-950/70 border border-purple-500/20 rounded-2xl p-4 sm:p-6 mb-6 flex flex-col items-center justify-center relative min-h-[220px] sm:min-h-[260px] shadow-inner">
+                <!-- SVG Music Staff Container -->
+                <div id="staff-svg-container" class="w-full max-w-xl flex items-center justify-center">
+                    <!-- SVG will be rendered dynamically via JS -->
+                </div>
+
+                <!-- Feedback Message Overlay -->
+                <div id="feedback-overlay" class="absolute bottom-3 left-1/2 -translate-x-1/2 opacity-0 transition-all duration-200 text-sm font-semibold px-4 py-1.5 rounded-full flex items-center space-x-2 pointer-events-none">
+                    <span id="feedback-icon"></span>
+                    <span id="feedback-text">Correct!</span>
+                </div>
+            </div>
+
+            <!-- MANUAL CONFIRMATION / NEXT BUTTON (Hidden if Instant Feedback is ON) -->
+            <div id="confirm-container" class="h-10 mb-3 flex items-center justify-center hidden">
+                <button id="confirm-btn" class="glass-button px-6 py-2 rounded-xl font-bold text-sm text-purple-100 flex items-center space-x-2">
+                    <span>Submit Answer</span>
+                    →
+                </button>
+            </div>
+
+            <!-- NOTE INPUT KEYS (A - G) -->
+            <div class="w-full max-w-2xl grid grid-cols-7 gap-1.5 sm:gap-3 mb-4">
+                <button data-note="A" class="note-btn glass-card hover:bg-purple-600/40 text-purple-100 py-3 sm:py-5 rounded-xl font-extrabold text-lg sm:text-2xl border border-purple-400/20 shadow-lg flex flex-col items-center justify-center space-y-1">
+                    <span>A</span>
+                    <span class="text-[10px] text-purple-400 font-normal hidden sm:inline">[Key A]</span>
+                </button>
+                <button data-note="B" class="note-btn glass-card hover:bg-purple-600/40 text-purple-100 py-3 sm:py-5 rounded-xl font-extrabold text-lg sm:text-2xl border border-purple-400/20 shadow-lg flex flex-col items-center justify-center space-y-1">
+                    <span>B</span>
+                    <span class="text-[10px] text-purple-400 font-normal hidden sm:inline">[Key B]</span>
+                </button>
+                <button data-note="C" class="note-btn glass-card hover:bg-purple-600/40 text-purple-100 py-3 sm:py-5 rounded-xl font-extrabold text-lg sm:text-2xl border border-purple-400/20 shadow-lg flex flex-col items-center justify-center space-y-1">
+                    <span>C</span>
+                    <span class="text-[10px] text-purple-400 font-normal hidden sm:inline">[Key C]</span>
+                </button>
+                <button data-note="D" class="note-btn glass-card hover:bg-purple-600/40 text-purple-100 py-3 sm:py-5 rounded-xl font-extrabold text-lg sm:text-2xl border border-purple-400/20 shadow-lg flex flex-col items-center justify-center space-y-1">
+                    <span>D</span>
+                    <span class="text-[10px] text-purple-400 font-normal hidden sm:inline">[Key D]</span>
+                </button>
+                <button data-note="E" class="note-btn glass-card hover:bg-purple-600/40 text-purple-100 py-3 sm:py-5 rounded-xl font-extrabold text-lg sm:text-2xl border border-purple-400/20 shadow-lg flex flex-col items-center justify-center space-y-1">
+                    <span>E</span>
+                    <span class="text-[10px] text-purple-400 font-normal hidden sm:inline">[Key E]</span>
+                </button>
+                <button data-note="F" class="note-btn glass-card hover:bg-purple-600/40 text-purple-100 py-3 sm:py-5 rounded-xl font-extrabold text-lg sm:text-2xl border border-purple-400/20 shadow-lg flex flex-col items-center justify-center space-y-1">
+                    <span>F</span>
+                    <span class="text-[10px] text-purple-400 font-normal hidden sm:inline">[Key F]</span>
+                </button>
+                <button data-note="G" class="note-btn glass-card hover:bg-purple-600/40 text-purple-100 py-3 sm:py-5 rounded-xl font-extrabold text-lg sm:text-2xl border border-purple-400/20 shadow-lg flex flex-col items-center justify-center space-y-1">
+                    <span>G</span>
+                    <span class="text-[10px] text-purple-400 font-normal hidden sm:inline">[Key G]</span>
+                </button>
+            </div>
+
+            <!-- Keyboard shortcut hint -->
+            <p class="text-xs text-purple-300/60 text-center">
+                ⌨️ Use your keyboard keys <span class="text-purple-300 font-semibold">A, B, C, D, E, F, G</span> to answer immediately.
+            </p>
+        </div>
+
+    </main>
+
+    <div id="stats-modal" class="fixed inset-0 bg-purple-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+        <div class="glass-panel w-full max-w-2xl rounded-3xl p-6 max-h-[90vh] overflow-y-auto border border-purple-400/30 shadow-2xl flex flex-col">
+            
+            <div class="flex justify-between items-center pb-4 border-b border-purple-500/20 mb-5">
+                <div class="flex items-center space-x-2">
+                    📈
+                    <h2 class="text-xl font-bold text-purple-100">Performance Analytics</h2>
+                </div>
+                <button id="close-stats-btn" class="text-purple-400 hover:text-white p-2 rounded-xl hover:bg-purple-800/40 transition">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Overall Summary Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div class="glass-card p-4 rounded-2xl text-center border border-purple-500/20">
+                    <p class="text-xs text-purple-300 font-medium">Total Questions</p>
+                    <p id="stat-total" class="text-2xl font-extrabold text-purple-100 mt-1">0</p>
+                </div>
+                <div class="glass-card p-4 rounded-2xl text-center border border-purple-500/20">
+                    <p class="text-xs text-purple-300 font-medium">Accuracy</p>
+                    <p id="stat-accuracy" class="text-2xl font-extrabold text-emerald-400 mt-1">0%</p>
+                </div>
+                <div class="glass-card p-4 rounded-2xl text-center border border-purple-500/20">
+                    <p class="text-xs text-purple-300 font-medium">Avg Response Time</p>
+                    <p id="stat-avg-time" class="text-2xl font-extrabold text-purple-200 mt-1">0.0s</p>
+                </div>
+                <div class="glass-card p-4 rounded-2xl text-center border border-purple-500/20">
+                    <p class="text-xs text-purple-300 font-medium">Best Streak</p>
+                    <p id="stat-max-streak" class="text-2xl font-extrabold text-amber-400 mt-1">0</p>
+                </div>
+            </div>
+
+            <!-- Fastest vs Slowest Note breakdown -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                <div class="glass-card p-4 rounded-2xl border border-purple-500/20 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-purple-300">⚡ Fast & Accurate Note</p>
+                        <p id="stat-fastest-note" class="text-xl font-bold text-purple-100 mt-0.5">--</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-lg">
+                        ⚡
+                    </div>
+                </div>
+
+                <div class="glass-card p-4 rounded-2xl border border-purple-500/20 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-purple-300">🐢 Needs Practice Note</p>
+                        <p id="stat-slowest-note" class="text-xl font-bold text-purple-100 mt-0.5">--</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 text-lg">
+                        ⏳
+                    </div>
+                </div>
+            </div>
+
+            <!-- Note-by-Note Breakdown Bar List -->
+            <div class="mb-4">
+                <h3 class="text-xs font-semibold text-purple-300 uppercase tracking-wider mb-3">Accuracy by Note (A - G)</h3>
+                <div id="note-breakdown-container" class="space-y-2.5">
+                    <!-- Bars inserted by JS -->
+                </div>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-purple-500/20 flex justify-end">
+                <button id="clear-stats-btn" class="px-4 py-2 rounded-xl glass-card border border-red-500/30 text-red-300 hover:bg-red-950/40 text-xs font-semibold">
+                    Reset All Analytics Data
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="w-full max-w-5xl text-center py-3 text-xs text-purple-300/50">
+        Note Maestro &copy; 2026 &bull; Dark Mode Purple Glassmorphism Edition
+    </footer>
+
+    <script>
+        // Default Configuration
+        const config = {
+            clef: 'treble',            // 'treble', 'bass', 'both'
+            order: 'random',           // 'random', 'bottom-up', 'top-down'
+            showTimer: true,           // boolean
+            timerMode: 'stopwatch',    // 'stopwatch', 'countdown'
+            basicOnly: true,          // boolean: strictly 5 lines & 4 spaces
+            includeAccidentals: false, // boolean: # / b
+            visualStyle: 'notehead',   // 'notehead', 'line-highlight'
+            instantFeedback: true,     // auto advance vs manual confirm
+            audioEnabled: true
+        };
+
+        // Note mappings with Octaves & Frequency Pitch Definitions
+        // Standard Treble Clef basic lines & spaces:
+        // Lines: E4, G4, B4, D5, F5
+        // Spaces: F4, A4, C5, E5
+        // Ledger lines extension: C4 (middle C), D4, G5, A5
+        const TREBLE_NOTES = [
+            { pitch: 'C4', letter: 'C', type: 'ledger', lineNum: -2, freq: 261.63 },
+            { pitch: 'D4', letter: 'D', type: 'ledger-space', lineNum: -1, freq: 293.66 },
+            { pitch: 'E4', letter: 'E', type: 'line', index: 0, freq: 329.63 },
+            { pitch: 'F4', letter: 'F', type: 'space', index: 0, freq: 349.23 },
+            { pitch: 'G4', letter: 'G', type: 'line', index: 1, freq: 392.00 },
+            { pitch: 'A4', letter: 'A', type: 'space', index: 1, freq: 440.00 },
+            { pitch: 'B4', letter: 'B', type: 'line', index: 2, freq: 493.88 },
+            { pitch: 'C5', letter: 'C', type: 'space', index: 2, freq: 523.25 },
+            { pitch: 'D5', letter: 'D', type: 'line', index: 3, freq: 587.33 },
+            { pitch: 'E5', letter: 'E', type: 'space', index: 3, freq: 659.25 },
+            { pitch: 'F5', letter: 'F', type: 'line', index: 4, freq: 698.46 },
+            { pitch: 'G5', letter: 'G', type: 'ledger-space', lineNum: 5, freq: 783.99 },
+            { pitch: 'A5', letter: 'A', type: 'ledger', lineNum: 6, freq: 880.00 }
+        ];
+
+        // Standard Bass Clef basic lines & spaces:
+        // Lines: G2, B2, D3, F3, A3
+        // Spaces: A2, C3, E3, G3
+        // Ledger lines extension: E2, F2, B3, C4
+        const BASS_NOTES = [
+            { pitch: 'E2', letter: 'E', type: 'ledger', lineNum: -2, freq: 82.41 },
+            { pitch: 'F2', letter: 'F', type: 'ledger-space', lineNum: -1, freq: 87.31 },
+            { pitch: 'G2', letter: 'G', type: 'line', index: 0, freq: 98.00 },
+            { pitch: 'A2', letter: 'A', type: 'space', index: 0, freq: 110.00 },
+            { pitch: 'B2', letter: 'B', type: 'line', index: 1, freq: 123.47 },
+            { pitch: 'C3', letter: 'C', type: 'space', index: 1, freq: 130.81 },
+            { pitch: 'D3', letter: 'D', type: 'line', index: 2, freq: 146.83 },
+            { pitch: 'E3', letter: 'E', type: 'space', index: 2, freq: 164.81 },
+            { pitch: 'F3', letter: 'F', type: 'line', index: 3, freq: 174.61 },
+            { pitch: 'G3', letter: 'G', type: 'space', index: 3, freq: 196.00 },
+            { pitch: 'A3', letter: 'A', type: 'line', index: 4, freq: 220.00 },
+            { pitch: 'B3', letter: 'B', type: 'ledger-space', lineNum: 5, freq: 246.94 },
+            { pitch: 'C4', letter: 'C', type: 'ledger', lineNum: 6, freq: 261.63 }
+        ];
+
+        // Runtime State variables
+        let currentQuestion = null;
+        let activePool = [];
+        let poolIndex = 0;
+        let score = 0;
+        let totalAnswered = 0;
+        let currentStreak = 0;
+        let bestStreak = 0;
+        let timerInterval = null;
+        let timerSeconds = 0;
+        let questionStartTime = 0;
+        let selectedAnswer = null;
+
+        // Statistics Storage Structure (persisted in localStorage)
+        let noteStats = {
+            A: { correct: 0, total: 0, totalTimeMs: 0 },
+            B: { correct: 0, total: 0, totalTimeMs: 0 },
+            C: { correct: 0, total: 0, totalTimeMs: 0 },
+            D: { correct: 0, total: 0, totalTimeMs: 0 },
+            E: { correct: 0, total: 0, totalTimeMs: 0 },
+            F: { correct: 0, total: 0, totalTimeMs: 0 },
+            G: { correct: 0, total: 0, totalTimeMs: 0 }
+        };
+
+        // Synthesizer setup
+        let synth = null;
+
+        function initAudio() {
+            try {
+                if (!synth && window.Tone) {
+                    synth = new Tone.Synth({
+                        oscillator: { type: 'sine' },
+                        envelope: { attack: 0.005, decay: 0.2, sustain: 0.2, release: 0.8 }
+                    }).toDestination();
+                    synth.volume.value = -6; // Normal listening volume
+                }
+            } catch (e) {
+                console.warn("Tone.js Audio Init Warning:", e);
+            }
+        }
+
+        function playNoteSound(freq) {
+            if (!config.audioEnabled) return;
+            try {
+                if (window.Tone && Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                initAudio();
+                if (synth) {
+                    synth.triggerAttackRelease(freq, "8n");
+                }
+            } catch(e) {
+                console.warn("Audio playback error", e);
+            }
+        }
+
+        const staffSvgContainer = document.getElementById('staff-svg-container');
+        const scoreCountEl = document.getElementById('score-count');
+        const totalCountEl = document.getElementById('total-count');
+        const streakCountEl = document.getElementById('streak-count');
+        const timerValueEl = document.getElementById('timer-value');
+        const timerDisplayEl = document.getElementById('timer-display');
+        const clefIndicatorEl = document.getElementById('clef-indicator');
+        const feedbackOverlay = document.getElementById('feedback-overlay');
+        const feedbackIcon = document.getElementById('feedback-icon');
+        const feedbackText = document.getElementById('feedback-text');
+        const confirmContainer = document.getElementById('confirm-container');
+        const confirmBtn = document.getElementById('confirm-btn');
+
+        // Setup screen (shown first, and whenever settings are reopened)
+        const setupScreen = document.getElementById('setup-screen');
+        const settingsToggleBtn = document.getElementById('settings-toggle-btn');
+        const startBtn = document.getElementById('start-btn');
+        const resetSettingsBtn = document.getElementById('reset-settings-btn');
+
+        const statsModal = document.getElementById('stats-modal');
+        const statsToggleBtn = document.getElementById('stats-toggle-btn');
+        const closeStatsBtn = document.getElementById('close-stats-btn');
+        const clearStatsBtn = document.getElementById('clear-stats-btn');
+        const audioToggleBtn = document.getElementById('audio-toggle-btn');
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSavedStats();
+            setupSettingsUI();
+            setupEventListeners();
+        });
+
+        function loadSavedStats() {
+            const saved = localStorage.getItem('note_maestro_stats');
+            if (saved) {
+                try {
+                    noteStats = JSON.parse(saved);
+                } catch(e) {
+                    console.error("Error loading stats", e);
+                }
+            }
+        }
+
+        function saveStats() {
+            localStorage.setItem('note_maestro_stats', JSON.stringify(noteStats));
+        }
+
+        function startNewSession() {
+            // Build Question Pool based on current settings
+            activePool = [];
+
+            let includeTreble = config.clef === 'treble' || config.clef === 'both';
+            let includeBass = config.clef === 'bass' || config.clef === 'both';
+
+            if (includeTreble) {
+                let trebleFiltered = TREBLE_NOTES.filter(n => {
+                    if (config.basicOnly) return n.type === 'line' || n.type === 'space';
+                    return true;
+                }).map(n => ({ ...n, clef: 'treble' }));
+                activePool.push(...trebleFiltered);
+            }
+
+            if (includeBass) {
+                let bassFiltered = BASS_NOTES.filter(n => {
+                    if (config.basicOnly) return n.type === 'line' || n.type === 'space';
+                    return true;
+                }).map(n => ({ ...n, clef: 'bass' }));
+                activePool.push(...bassFiltered);
+            }
+
+            // Apply Sequence Order
+            if (config.order === 'random') {
+                shuffleArray(activePool);
+            } else if (config.order === 'bottom-up') {
+                // Already sorted low to high freq
+            } else if (config.order === 'top-down') {
+                activePool.reverse();
+            }
+
+            poolIndex = 0;
+            score = 0;
+            totalAnswered = 0;
+            currentStreak = 0;
+            updateScoreUI();
+
+            // Setup Timer
+            clearInterval(timerInterval);
+            if (config.timerMode === 'countdown') {
+                timerSeconds = 60;
+            } else {
+                timerSeconds = 0;
+            }
+            updateTimerDisplay();
+
+            if (config.showTimer) {
+                timerDisplayEl.classList.remove('hidden');
+                timerInterval = setInterval(tickTimer, 100);
+            } else {
+                timerDisplayEl.classList.add('hidden');
+            }
+
+            // Setup Feedback mode visibility
+            if (config.instantFeedback) {
+                confirmContainer.classList.add('hidden');
+            } else {
+                confirmContainer.classList.remove('hidden');
+            }
+
+            nextQuestion();
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+
+        function tickTimer() {
+            if (config.timerMode === 'countdown') {
+                timerSeconds -= 0.1;
+                if (timerSeconds <= 0) {
+                    timerSeconds = 0;
+                    clearInterval(timerInterval);
+                    showToastTimerExpired();
+                }
+            } else {
+                timerSeconds += 0.1;
+            }
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const totalMs = Math.max(0, Math.floor(timerSeconds * 10));
+            const mins = Math.floor(totalMs / 600);
+            const secs = Math.floor((totalMs % 600) / 10);
+            const tenths = totalMs % 10;
+            timerValueEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${tenths}`;
+        }
+
+        function showToastTimerExpired() {
+            feedbackOverlay.className = "absolute bottom-3 left-1/2 -translate-x-1/2 opacity-100 bg-amber-500/80 text-white px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200";
+            feedbackIcon.textContent = '⌛';
+            feedbackText.textContent = "Time's Up!";
+        }
+
+        function nextQuestion() {
+            if (activePool.length === 0) return;
+
+            if (poolIndex >= activePool.length) {
+                if (config.order === 'random') {
+                    shuffleArray(activePool);
+                }
+                poolIndex = 0;
+            }
+
+            currentQuestion = activePool[poolIndex];
+            poolIndex++;
+            questionStartTime = performance.now();
+            selectedAnswer = null;
+
+            // Update Clef Badge Indicator
+            clefIndicatorEl.textContent = currentQuestion.clef === 'treble' ? 'Treble Clef' : 'Bass Clef';
+
+            renderStaffSVG(currentQuestion);
+        }
+
+        function renderStaffSVG(question) {
+            const width = 480;
+            const height = 200;
+            const startY = 60;
+            const lineSpacing = 16; // space between staff lines
+
+            let svgHtml = `<svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" class="staff-glow">`;
+
+            // Draw 5 Staff Lines
+            for (let i = 0; i < 5; i++) {
+                let y = startY + (i * lineSpacing);
+                svgHtml += `<line x1="40" y1="${y}" x2="${width - 40}" y2="${y}" stroke="#8b41f6" stroke-width="2.5" opacity="0.65" stroke-linecap="round"/>`;
+            }
+
+            // Draw Clef Symbol (Unicode musical glyph - renders reliably at any size)
+            const bottomLineY = startY + (4 * lineSpacing);
+            if (question.clef === 'treble') {
+                svgHtml += `<text x="44" y="${bottomLineY + lineSpacing * 0.4}" font-size="${lineSpacing * 4.75}" fill="#c59bfb" opacity="0.95" font-family="Georgia,'Times New Roman',serif">&#x1D11E;</text>`;
+            } else {
+                svgHtml += `<text x="44" y="${bottomLineY - lineSpacing * 1.1}" font-size="${lineSpacing * 2.75}" fill="#c59bfb" opacity="0.95" font-family="Georgia,'Times New Roman',serif">&#x1D122;</text>`;
+            }
+
+            // Calculate Note Vertical Y Coordinate
+            // For standard 5 lines (index 0 is bottom line, 4 is top line):
+            // Bottom line (index 0) Y = startY + 4 * lineSpacing = 60 + 64 = 124
+            // Each step (line to space) is lineSpacing / 2 = 8px
+            let noteY = bottomLineY;
+
+            if (question.type === 'line') {
+                noteY = bottomLineY - (question.index * lineSpacing);
+            } else if (question.type === 'space') {
+                noteY = bottomLineY - (question.index * lineSpacing + (lineSpacing / 2));
+            } else if (question.type === 'ledger') {
+                if (question.lineNum < 0) { // Below staff
+                    noteY = bottomLineY + (Math.abs(question.lineNum) / 2 * lineSpacing);
+                } else { // Above staff
+                    const topLineY = startY;
+                    noteY = topLineY - ((question.lineNum - 4) / 2 * lineSpacing);
+                }
+            } else if (question.type === 'ledger-space') {
+                if (question.lineNum < 0) {
+                    noteY = bottomLineY + ((Math.abs(question.lineNum) + 0.5) * lineSpacing / 2);
+                } else {
+                    const topLineY = startY;
+                    noteY = topLineY - ((question.lineNum - 4 + 0.5) * lineSpacing / 2);
+                }
+            }
+
+            const noteX = width / 2 + 30;
+
+            // Visual Style Check
+            if (config.visualStyle === 'line-highlight' && (question.type === 'line' || question.type === 'ledger')) {
+                // Highlight line mode
+                svgHtml += `<line x1="120" y1="${noteY}" x2="${width - 60}" y2="${noteY}" class="highlight-line"/>`;
+            } else {
+                // Standard Notehead Rendering
+                // Ledger lines if necessary
+                if (question.type === 'ledger') {
+                    svgHtml += `<line x1="${noteX - 22}" y1="${noteY}" x2="${noteX + 22}" y2="${noteY}" stroke="#e2ccfd" stroke-width="2.5"/>`;
+                }
+
+                // Render Note Oval Head
+                svgHtml += `
+                    <g class="note-glow">
+                        <ellipse cx="${noteX}" cy="${noteY}" rx="11" ry="8" fill="#e2ccfd" transform="rotate(-20 ${noteX} ${noteY})"/>
+                    </g>
+                `;
+
+                // Note Stem
+                const stemUp = noteY > startY + (2 * lineSpacing);
+                const stemX = stemUp ? noteX + 9.5 : noteX - 9.5;
+                const stemY2 = stemUp ? noteY - 42 : noteY + 42;
+                svgHtml += `<line x1="${stemX}" y1="${noteY}" x2="${stemX}" y2="${stemY2}" stroke="#e2ccfd" stroke-width="2.5" stroke-linecap="round"/>`;
+            }
+
+            svgHtml += `</svg>`;
+            staffSvgContainer.innerHTML = svgHtml;
+        }
+
+        function setupEventListeners() {
+            // Note Buttons A-G
+            document.querySelectorAll('.note-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const note = btn.getAttribute('data-note');
+                    handleAnswerInput(note);
+                });
+            });
+
+            // Keyboard Shortcuts
+            window.addEventListener('keydown', (e) => {
+                // Ignore if the setup screen or stats modal is showing
+                if (!setupScreen.classList.contains('hidden') ||
+                    !statsModal.classList.contains('pointer-events-none')) return;
+
+                const key = e.key.toUpperCase();
+                if (['A', 'B', 'C', 'D', 'E', 'F', 'G'].includes(key)) {
+                    // Visual key press animation
+                    const btn = document.querySelector(`.note-btn[data-note="${key}"]`);
+                    if (btn) {
+                        btn.classList.add('active-key');
+                        setTimeout(() => btn.classList.remove('active-key'), 150);
+                    }
+                    handleAnswerInput(key);
+                } else if (e.key === 'Enter' && !config.instantFeedback) {
+                    if (selectedAnswer) {
+                        submitManualAnswer();
+                    }
+                }
+            });
+
+            // Confirm button for non-instant feedback mode
+            confirmBtn.addEventListener('click', () => {
+                if (selectedAnswer) submitManualAnswer();
+            });
+
+            // Header Controls
+            settingsToggleBtn.addEventListener('click', showSetupScreen);
+            startBtn.addEventListener('click', applySettingsAndStart);
+            resetSettingsBtn.addEventListener('click', resetSettingsToDefault);
+
+            statsToggleBtn.addEventListener('click', openStatsModal);
+            closeStatsBtn.addEventListener('click', closeStatsModal);
+            clearStatsBtn.addEventListener('click', clearAllStatsData);
+
+            audioToggleBtn.addEventListener('click', toggleAudio);
+        }
+
+        function handleAnswerInput(note) {
+            if (!currentQuestion) return;
+
+            playNoteSound(currentQuestion.freq);
+
+            if (config.instantFeedback) {
+                processAnswer(note);
+            } else {
+                selectedAnswer = note;
+                // Highlight selected button
+                document.querySelectorAll('.note-btn').forEach(btn => {
+                    if (btn.getAttribute('data-note') === note) {
+                        btn.classList.add('ring-2', 'ring-purple-400');
+                    } else {
+                        btn.classList.remove('ring-2', 'ring-purple-400');
+                    }
+                });
+            }
+        }
+
+        function submitManualAnswer() {
+            if (selectedAnswer) {
+                processAnswer(selectedAnswer);
+                document.querySelectorAll('.note-btn').forEach(btn => btn.classList.remove('ring-2', 'ring-purple-400'));
+            }
+        }
+
+        function processAnswer(userNote) {
+            const timeTaken = performance.now() - questionStartTime;
+            const isCorrect = userNote === currentQuestion.letter;
+
+            totalAnswered++;
+            if (isCorrect) {
+                score++;
+                currentStreak++;
+                if (currentStreak > bestStreak) bestStreak = currentStreak;
+                showFeedback(true, `Correct! ${currentQuestion.pitch}`);
+            } else {
+                currentStreak = 0;
+                showFeedback(false, `Incorrect. Note was ${currentQuestion.letter}`);
+            }
+
+            // Update Analytics Stats
+            if (noteStats[currentQuestion.letter]) {
+                noteStats[currentQuestion.letter].total++;
+                if (isCorrect) {
+                    noteStats[currentQuestion.letter].correct++;
+                    noteStats[currentQuestion.letter].totalTimeMs += timeTaken;
+                }
+            }
+            saveStats();
+
+            updateScoreUI();
+            nextQuestion();
+        }
+
+        function showFeedback(isCorrect, message) {
+            feedbackOverlay.className = `absolute bottom-3 left-1/2 -translate-x-1/2 opacity-100 ${
+                isCorrect ? 'bg-emerald-500/80' : 'bg-rose-500/80'
+            } text-white px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 pointer-events-none shadow-lg`;
+
+            feedbackIcon.textContent = isCorrect ? '✅' : '❌';
+            feedbackText.textContent = message;
+
+            setTimeout(() => {
+                feedbackOverlay.classList.replace('opacity-100', 'opacity-0');
+            }, 1200);
+        }
+
+        function updateScoreUI() {
+            scoreCountEl.textContent = score;
+            totalCountEl.textContent = totalAnswered;
+            streakCountEl.textContent = currentStreak;
+        }
+
+        function toggleAudio() {
+            config.audioEnabled = !config.audioEnabled;
+            audioToggleBtn.innerHTML = config.audioEnabled ?
+                '<span id="audio-icon" class="text-lg">🔊</span>' :
+                '<span id="audio-icon" class="text-lg text-rose-400">🔇</span>';
+        }
+
+        function setupSettingsUI() {
+            // Reflect current config into buttons
+            updateSettingButtonGroup('clef', config.clef);
+            updateSettingButtonGroup('order', config.order);
+            updateSettingButtonGroup('showTimer', String(config.showTimer));
+            updateSettingButtonGroup('timerMode', config.timerMode);
+            updateSettingButtonGroup('visualStyle', config.visualStyle);
+            updateSettingButtonGroup('instantFeedback', String(config.instantFeedback));
+
+            document.getElementById('setting-basic-only').checked = config.basicOnly;
+            document.getElementById('setting-accidentals').checked = config.includeAccidentals;
+
+            // Setting button clicks
+            document.querySelectorAll('.setting-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const settingKey = btn.getAttribute('data-setting');
+                    const value = btn.getAttribute('data-value');
+                    
+                    if (settingKey === 'showTimer' || settingKey === 'instantFeedback') {
+                        config[settingKey] = value === 'true';
+                    } else {
+                        config[settingKey] = value;
+                    }
+
+                    updateSettingButtonGroup(settingKey, value);
+                });
+            });
+        }
+
+        function updateSettingButtonGroup(settingKey, activeValue) {
+            document.querySelectorAll(`.setting-btn[data-setting="${settingKey}"]`).forEach(btn => {
+                if (btn.getAttribute('data-value') === activeValue) {
+                    btn.classList.add('bg-purple-600/80', 'border-purple-300', 'text-white', 'shadow-md');
+                    btn.classList.remove('glass-card');
+                } else {
+                    btn.classList.remove('bg-purple-600/80', 'border-purple-300', 'text-white', 'shadow-md');
+                    btn.classList.add('glass-card');
+                }
+            });
+        }
+
+        function showSetupScreen() {
+            clearInterval(timerInterval);
+            document.getElementById('quiz-container').classList.add('hidden');
+            setupScreen.classList.remove('hidden');
+        }
+
+        function applySettingsAndStart() {
+            config.basicOnly = document.getElementById('setting-basic-only').checked;
+            config.includeAccidentals = document.getElementById('setting-accidentals').checked;
+            setupScreen.classList.add('hidden');
+            document.getElementById('quiz-container').classList.remove('hidden');
+            startNewSession();
+        }
+
+        function resetSettingsToDefault() {
+            config.clef = 'treble';
+            config.order = 'random';
+            config.showTimer = true;
+            config.timerMode = 'stopwatch';
+            config.basicOnly = true;
+            config.includeAccidentals = false;
+            config.visualStyle = 'notehead';
+            config.instantFeedback = true;
+
+            setupSettingsUI();
+        }
+
+        function openStatsModal() {
+            renderAnalyticsData();
+            statsModal.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function closeStatsModal() {
+            statsModal.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        function renderAnalyticsData() {
+            let grandTotal = 0;
+            let grandCorrect = 0;
+            let grandTimeMs = 0;
+
+            let noteSpeeds = []; // { note, avgTime }
+
+            const breakdownContainer = document.getElementById('note-breakdown-container');
+            breakdownContainer.innerHTML = '';
+
+            ['A', 'B', 'C', 'D', 'E', 'F', 'G'].forEach(note => {
+                const stat = noteStats[note] || { correct: 0, total: 0, totalTimeMs: 0 };
+                grandTotal += stat.total;
+                grandCorrect += stat.correct;
+                grandTimeMs += stat.totalTimeMs;
+
+                const acc = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+                const avgTime = stat.correct > 0 ? (stat.totalTimeMs / stat.correct / 1000).toFixed(2) : '--';
+
+                if (stat.correct > 0) {
+                    noteSpeeds.push({ note, avgTime: stat.totalTimeMs / stat.correct });
+                }
+
+                // Render Progress Bar Row
+                const row = document.createElement('div');
+                row.className = "flex items-center space-x-3 text-xs";
+                row.innerHTML = `
+                    <span class="w-6 font-bold text-purple-200 text-sm text-center">${note}</span>
+                    <div class="flex-1 bg-purple-950/80 rounded-full h-3 overflow-hidden border border-purple-500/20">
+                        <div class="bg-gradient-to-r from-purple-500 to-purple-300 h-full rounded-full transition-all duration-500" style="width: ${acc}%"></div>
+                    </div>
+                    <span class="w-12 text-right font-semibold text-purple-300">${acc}%</span>
+                    <span class="w-16 text-right text-purple-400 text-[11px]">${avgTime}s</span>
+                `;
+                breakdownContainer.appendChild(row);
+            });
+
+            // Calculate Overall Summary
+            const overallAcc = grandTotal > 0 ? Math.round((grandCorrect / grandTotal) * 100) : 0;
+            const overallAvgTime = grandCorrect > 0 ? (grandTimeMs / grandCorrect / 1000).toFixed(2) : '0.0';
+
+            document.getElementById('stat-total').textContent = grandTotal;
+            document.getElementById('stat-accuracy').textContent = `${overallAcc}%`;
+            document.getElementById('stat-avg-time').textContent = `${overallAvgTime}s`;
+            document.getElementById('stat-max-streak').textContent = bestStreak;
+
+            // Fastest vs Slowest Note
+            if (noteSpeeds.length > 0) {
+                noteSpeeds.sort((a, b) => a.avgTime - b.avgTime);
+                document.getElementById('stat-fastest-note').textContent = `${noteSpeeds[0].note} (${(noteSpeeds[0].avgTime / 1000).toFixed(2)}s)`;
+                document.getElementById('stat-slowest-note').textContent = `${noteSpeeds[noteSpeeds.length - 1].note} (${(noteSpeeds[noteSpeeds.length - 1].avgTime / 1000).toFixed(2)}s)`;
+            } else {
+                document.getElementById('stat-fastest-note').textContent = '--';
+                document.getElementById('stat-slowest-note').textContent = '--';
+            }
+        }
+
+        function clearAllStatsData() {
+            if (confirm("Are you sure you want to clear all stored performance statistics?")) {
+                noteStats = {
+                    A: { correct: 0, total: 0, totalTimeMs: 0 },
+                    B: { correct: 0, total: 0, totalTimeMs: 0 },
+                    C: { correct: 0, total: 0, totalTimeMs: 0 },
+                    D: { correct: 0, total: 0, totalTimeMs: 0 },
+                    E: { correct: 0, total: 0, totalTimeMs: 0 },
+                    F: { correct: 0, total: 0, totalTimeMs: 0 },
+                    G: { correct: 0, total: 0, totalTimeMs: 0 }
+                };
+                bestStreak = 0;
+                saveStats();
+                renderAnalyticsData();
+            }
+        }
+    </script>
+</body>
+</html>
